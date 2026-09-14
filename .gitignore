@@ -1,0 +1,29 @@
+# Arquivos Sensíveis
+.env
+*.env
+credentials.json
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# VS Code
+.vscode/
+
+# IntelliJ IDEA (se alguém usar)
+.idea/
+*.iml
+*.iws
+
+# Sistema Operacional (Windows e Mac)
+Thumbs.db
+ehthumbs.db
+.DS_Store

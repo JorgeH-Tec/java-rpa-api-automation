@@ -110,11 +110,9 @@ public class Automation {
                         continue;
                     }
 
-                    String curso = textoColunaA;
-
                     String dataCurso = (linha.size() > 1 && linha.get(1) != null) ? linha.get(1).toString().trim() : "";
 
-                    System.out.println("\nProcessando curso: " + curso + " | Data: " + dataCurso);
+                    System.out.println("\nProcessando curso: " + textoColunaA + " | Data: " + dataCurso);
 
                     // Clica em Limpar via JavaScript para passar pela DivWait do OutSystems
                     WebElement btnLimpar = espera.until(ExpectedConditions.presenceOfElementLocated(
@@ -124,7 +122,7 @@ public class Automation {
 
                     WebElement inputPesquisa = espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(
                             "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt114_block_wtContent_wtInputNome2")));
-                    inputPesquisa.sendKeys(curso);
+                    inputPesquisa.sendKeys(textoColunaA);
                     WebElement inputData = espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(
                             "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt114_block_wtContent_wtTurma_DataInicioPeriodo")));
                     inputData.sendKeys(dataCurso);
@@ -167,8 +165,9 @@ public class Automation {
                     System.out.println("Extraído -> Inscritos: " + inscritos + " | Ouvintes: " + ouvintes);
 
                     // Salva na Planilha
-                    List<List<Object>> valoresAtualizacao = Arrays.asList(
-                            Arrays.asList(inscritos, ouvintes));
+                    List<List<Object>> valoresAtualizacao = List.of(
+                            Arrays.asList(inscritos, ouvintes)
+                    );
 
                     ValueRange body = new ValueRange().setValues(valoresAtualizacao);
 
@@ -184,7 +183,7 @@ public class Automation {
                     linhaAtualPlanilha++;
                 }
 
-                System.out.println("\n✅ Automação finalizada com sucesso!");
+                System.out.println("\nAutomação finalizada com sucesso!");
 
             } catch (Exception e) {
                 System.err.println("Erro na automação do Selenium: " + e.getMessage());

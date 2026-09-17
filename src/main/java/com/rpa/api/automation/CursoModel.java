@@ -1,11 +1,11 @@
 package com.rpa.api.automation;
 
 public class CursoModel {
-    private String nome;
-    private String data;
+    private final String nome;
+    private final String data;
     private int inscritos;
     private int ouvintes;
-    private int linhaPlanilha;
+    private final int linhaPlanilha;
 
     public CursoModel(String nome, String data, int linhaPlanilha) {
         this.nome = nome;

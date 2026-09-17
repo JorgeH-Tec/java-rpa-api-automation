@@ -1,5 +1,8 @@
 package com.rpa.api.automation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.github.cdimascio.dotenv.Dotenv;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
@@ -16,9 +19,11 @@ import java.util.List;
 
 public class GoogleSheetsService {
 
-    private String spreadsheetId;
-    private String nomeAba;
-    private Sheets servicoPlanilha;
+    private static final Logger log = LoggerFactory.getLogger(GoogleSheetsService.class);
+
+    private final String spreadsheetId;
+    private final String nomeAba;
+    private final Sheets servicePlanilha;
 
     public GoogleSheetsService() {
         Dotenv dotenv = Dotenv.load();
@@ -27,15 +32,15 @@ public class GoogleSheetsService {
         String credentialsPath = dotenv.get("GOOGLE_CREDENTIALS_PATH");
 
         try {
-            System.out.println("Autenticando com o Google Cloud...");
+            log.info("Autenticando com o Google Cloud...");
             GoogleCredentials credenciais = GoogleCredentials.fromStream(new FileInputStream(credentialsPath))
                     .createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
 
-            this.servicoPlanilha = new Sheets.Builder(
+            this.servicePlanilha = new Sheets.Builder(
                     GoogleNetHttpTransport.newTrustedTransport(),
                     GsonFactory.getDefaultInstance(),
                     new HttpCredentialsAdapter(credenciais))
-                    .setApplicationName("Robo EGOV")
+                    .setApplicationName("Robo")
                     .build();
         } catch (Exception e) {
             throw new RuntimeException("Erro ao conectar no Google: " + e.getMessage());
@@ -43,8 +48,8 @@ public class GoogleSheetsService {
     }
 
     public List<CursoModel> buscarCursos() throws Exception {
-        System.out.println("Buscando cursos na nuvem...");
-        ValueRange resposta = servicoPlanilha.spreadsheets().values()
+        log.info("Buscando cursos na nuvem...");
+        ValueRange resposta = servicePlanilha.spreadsheets().values()
                 .get(spreadsheetId, nomeAba + "!A2:B")
                 .execute();
 
@@ -52,7 +57,7 @@ public class GoogleSheetsService {
         List<CursoModel> listaDeCursosValidos = new ArrayList<>();
 
         if (valores == null || valores.isEmpty()) {
-            System.out.println("A planilha está vazia.");
+            log.info("A planilha está vazia.");
             return listaDeCursosValidos; // Retorna lista vazia
         }
 
@@ -96,11 +101,11 @@ public class GoogleSheetsService {
 
         String intervaloAtualizacao = nomeAba + "!C" + curso.getLinhaPlanilha() + ":D" + curso.getLinhaPlanilha();
 
-        servicoPlanilha.spreadsheets().values()
+        servicePlanilha.spreadsheets().values()
                 .update(spreadsheetId, intervaloAtualizacao, body)
                 .setValueInputOption("USER_ENTERED")
                 .execute();
 
-        System.out.println("Salvo na planilha na linha " + curso.getLinhaPlanilha() + "!");
+        log.info("Salvo na planilha na linha {}!", curso.getLinhaPlanilha());
     }
 }

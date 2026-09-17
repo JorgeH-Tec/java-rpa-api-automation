@@ -1,5 +1,8 @@
 package com.rpa.api.automation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.github.cdimascio.dotenv.Dotenv;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
@@ -14,6 +17,8 @@ import java.time.Duration;
 
 public class SistemaNavegador {
 
+    private static final Logger log = LoggerFactory.getLogger(SistemaNavegador.class);
+
     private static final String BTN_ACESSO_SISTEMA = "//span[text()='EGOV']";
     private static final String MENU_INSCRICAO = "LisbonTheme_wt268_block_wtMenu_wt261_RichWidgets_wtInscricoes_block_wtMenuItem_wt233";
     private static final String MENU_CONFIRMAR_INSCRICAO = "LisbonTheme_wt268_block_wtMenu_wt261_RichWidgets_wtInscricoes_block_wtMenuSubItems_wt107";
@@ -27,10 +32,10 @@ public class SistemaNavegador {
     private static final String LBL_OUVINTES = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn2_WebPatterns_wt73_block_wtContent_WebPatterns_wt297_block_wtNumber";
     private static final String TELA_CARREGAMENTO = "divWait";
 
-    private WebDriver navegador;
-    private WebDriverWait espera;
-    private WebDriverWait esperaLogin;
-    private String urlSistema;
+    private final WebDriver navegador;
+    private final WebDriverWait espera;
+    private final WebDriverWait esperaLogin;
+    private final String urlSistema;
 
     public SistemaNavegador() {
         Dotenv dotenv = Dotenv.load();
@@ -38,7 +43,7 @@ public class SistemaNavegador {
         int tempoEspera = Integer.parseInt(dotenv.get("TEMPO_ESPERA_SEGUNDOS"));
         int tempoLogin = Integer.parseInt(dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS"));
 
-        System.out.println("Iniciando o Navegador Chrome...");
+        log.info("Iniciando o Navegador Chrome...");
         WebDriverManager.chromedriver().setup();
         this.navegador = new ChromeDriver();
         this.navegador.manage().window().maximize();
@@ -49,10 +54,10 @@ public class SistemaNavegador {
 
     public void fazerLogin() {
         navegador.get(urlSistema);
-        System.out.println("Realize o Login no navegador...");
+        log.info("Realize o Login no navegador...");
 
         WebElement acesso = esperaLogin.until(ExpectedConditions.elementToBeClickable(By.xpath(BTN_ACESSO_SISTEMA)));
-        System.out.println("Login detectado! Assumindo o controle...");
+        log.info("Login detectado! Assumindo o controle...");
         acesso.click();
 
         espera.until(ExpectedConditions.elementToBeClickable(By.id(MENU_INSCRICAO))).click();
@@ -60,7 +65,7 @@ public class SistemaNavegador {
     }
 
     public void processarCurso(CursoModel curso) throws InterruptedException {
-        System.out.println("\nProcessando curso: " + curso.getNome() + " | Data: " + curso.getData());
+        log.info("\nProcessando curso: {} | Data: {}", curso.getNome(), curso.getData());
 
         WebElement btnLimpar = espera.until(ExpectedConditions.presenceOfElementLocated(By.id(BTN_LIMPAR)));
         JavascriptExecutor js = (JavascriptExecutor) navegador;
@@ -87,7 +92,7 @@ public class SistemaNavegador {
         int inscritos = Integer.parseInt(labelInscritos.getText().trim());
         int ouvintes = Integer.parseInt(labelOuvintes.getText().trim());
 
-        System.out.println("Extraído -> Inscritos: " + inscritos + " | Ouvintes: " + ouvintes);
+        log.info("Extraído -> Inscritos: {} | Ouvintes: {}", inscritos, ouvintes);
 
         curso.setInscritos(inscritos);
         curso.setOuvintes(ouvintes);

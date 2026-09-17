@@ -1,12 +1,17 @@
 package com.rpa.api.automation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 
 public class Automation {
 
+    private static final Logger log = LoggerFactory.getLogger(Automation.class);
+
     public static void main(String[] args) {
 
-        System.out.println("=== INICIANDO ROBÔ ===");
+        log.info("=== INICIANDO ROBÔ ===");
 
         SistemaNavegador sistema = null;
 
@@ -16,7 +21,7 @@ public class Automation {
             List<CursoModel> listaDeCursos = google.buscarCursos();
 
             if (listaDeCursos.isEmpty()) {
-                System.out.println("Nenhum registro válido encontrado na planilha para processar.");
+                log.info("Nenhum registro válido encontrado na planilha para processar.");
                 return;
             }
 
@@ -29,11 +34,11 @@ public class Automation {
                 google.salvarResultados(cursoAtual);
             }
 
-            System.out.println("\nAutomação finalizada com sucesso!");
+            log.info("\nAutomação finalizada com sucesso!");
 
         } catch (Exception e) {
-            System.err.println("Erro crítico na execução do robô: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Erro crítico na execução do robô", e);
+            throw new RuntimeException(e);
         } finally {
             if (sistema != null) {
                 sistema.fecharNavegador();

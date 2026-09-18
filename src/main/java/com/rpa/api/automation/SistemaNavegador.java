@@ -6,9 +6,7 @@ import org.slf4j.LoggerFactory;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -20,16 +18,12 @@ public class SistemaNavegador {
     private static final Logger log = LoggerFactory.getLogger(SistemaNavegador.class);
 
     private static final String BTN_ACESSO_SISTEMA = "//span[text()='EGOV']";
-    private static final String MENU_INSCRICAO = "LisbonTheme_wt268_block_wtMenu_wt261_RichWidgets_wtInscricoes_block_wtMenuItem_wt233";
-    private static final String MENU_CONFIRMAR_INSCRICAO = "LisbonTheme_wt268_block_wtMenu_wt261_RichWidgets_wtInscricoes_block_wtMenuSubItems_wt107";
-    private static final String BTN_LIMPAR = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt114_block_wtContent_wt278";
-    private static final String INPUT_NOME = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt114_block_wtContent_wtInputNome2";
-    private static final String INPUT_DATA = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt114_block_wtContent_wtTurma_DataInicioPeriodo";
-    private static final String BTN_PESQUISAR = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt114_block_wtContent_wt42";
-    private static final String BTN_LISTAR = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt319_block_wtContent_wtTableTurmas_ctl03_wt284";
     private static final String BTN_CONFIRMAR_ACAO = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wtContent2_block_wtContent_wt387";
     private static final String LBL_INSCRITOS = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn1_WebPatterns_wt37_block_wtColumn3_WebPatterns_wt380_block_wtNumber";
     private static final String LBL_OUVINTES = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn2_WebPatterns_wt73_block_wtContent_WebPatterns_wt297_block_wtNumber";
+    private static final String LBL_PRE_INSCRITOS = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn1_WebPatterns_wt361_block_wtColumn2_WebPatterns_wt153_block_wtNumber";
+    private static final String LBL_SOLICITACOES_OUVINTES = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn2_WebPatterns_wt73_block_wtContent_WebPatterns_wt25_block_wtNumber";
+    private static final String LBL_CANCELADOS = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn1_WebPatterns_wt361_block_wtColumn2_WebPatterns_wt30_block_wtNumber";
     private static final String TELA_CARREGAMENTO = "divWait";
 
     private final WebDriver navegador;
@@ -56,46 +50,41 @@ public class SistemaNavegador {
         navegador.get(urlSistema);
         log.info("Realize o Login no navegador...");
 
-        WebElement acesso = esperaLogin.until(ExpectedConditions.elementToBeClickable(By.xpath(BTN_ACESSO_SISTEMA)));
+        esperaLogin.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(BTN_ACESSO_SISTEMA)));
         log.info("Login detectado! Assumindo o controle...");
-        acesso.click();
-
-        espera.until(ExpectedConditions.elementToBeClickable(By.id(MENU_INSCRICAO))).click();
-        espera.until(ExpectedConditions.elementToBeClickable(By.id(MENU_CONFIRMAR_INSCRICAO))).click();
     }
 
-    public void processarCurso(CursoModel curso) throws InterruptedException {
-        log.info("\nProcessando curso: {} | Data: {}", curso.getNome(), curso.getData());
+    public void processarCurso(CursoModel curso) {
+        try {
+            log.info("\nProcessando curso: {} | Data: {} | ID: {}", curso.getNome(), curso.getData(), curso.getId());
 
-        WebElement btnLimpar = espera.until(ExpectedConditions.presenceOfElementLocated(By.id(BTN_LIMPAR)));
-        JavascriptExecutor js = (JavascriptExecutor) navegador;
-        js.executeScript("arguments[0].click();", btnLimpar);
+            String urlDireta = urlSistema + curso.getId();
+            navegador.get(urlDireta);
+            aguardarCarregamento();
 
-        espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(INPUT_NOME))).sendKeys(curso.getNome());
+            // Look-Before-You-Leap
+            int preInscritos = Integer.parseInt(navegador.findElement(By.id(LBL_PRE_INSCRITOS)).getText().trim());
+            int solicitacoesOuvintes = Integer.parseInt(navegador.findElement(By.id(LBL_SOLICITACOES_OUVINTES)).getText().trim());
+            int cancelados = Integer.parseInt(navegador.findElement(By.id(LBL_CANCELADOS)).getText().trim());
+            int ouvintesConfirmados = Integer.parseInt(navegador.findElement(By.id(LBL_OUVINTES)).getText().trim());
 
-        if (!curso.getData().isEmpty()) {
-            espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(INPUT_DATA))).sendKeys(curso.getData());
+            if (preInscritos > 0 || solicitacoesOuvintes > ouvintesConfirmados || cancelados > 0) {
+                log.info("Ações pendentes detectadas (Pré: {}, Solicitados: {}, Cancelados: {}). Confirmando...", preInscritos, solicitacoesOuvintes, cancelados);
+
+                espera.until(ExpectedConditions.elementToBeClickable(By.id(BTN_CONFIRMAR_ACAO))).click();
+                aguardarCarregamento();
+            } else {
+                log.info("Nenhuma inscrição pendente. Pulando a confirmação para economizar tempo.");
+            }
+
+            curso.setInscritos(Integer.parseInt(espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(LBL_INSCRITOS))).getText().trim()));
+            curso.setOuvintes(Integer.parseInt(espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(LBL_OUVINTES))).getText().trim()));
+
+            log.info("Extraído -> Inscritos: {} | Ouvintes: {}", curso.getInscritos(), curso.getOuvintes());
+        } catch(Exception e) {
+            log.error("Falha ao processar a página do curso: {}", curso.getNome(), e);
+            throw new RuntimeException("Erro ao processar o curso: " + curso.getNome(), e);
         }
-
-        espera.until(ExpectedConditions.elementToBeClickable(By.id(BTN_PESQUISAR))).click();
-        aguardarCarregamento();
-
-        espera.until(ExpectedConditions.elementToBeClickable(By.id(BTN_LISTAR))).click();
-        aguardarCarregamento();
-
-        espera.until(ExpectedConditions.elementToBeClickable(By.id(BTN_CONFIRMAR_ACAO))).click();
-        aguardarCarregamento();
-
-        WebElement labelInscritos = espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(LBL_INSCRITOS)));
-        WebElement labelOuvintes = espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(LBL_OUVINTES)));
-
-        int inscritos = Integer.parseInt(labelInscritos.getText().trim());
-        int ouvintes = Integer.parseInt(labelOuvintes.getText().trim());
-
-        log.info("Extraído -> Inscritos: {} | Ouvintes: {}", inscritos, ouvintes);
-
-        curso.setInscritos(inscritos);
-        curso.setOuvintes(ouvintes);
     }
 
     private void aguardarCarregamento() throws InterruptedException {

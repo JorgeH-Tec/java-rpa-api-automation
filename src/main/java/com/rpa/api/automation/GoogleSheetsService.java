@@ -3,6 +3,13 @@ package com.rpa.api.automation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import io.github.cdimascio.dotenv.Dotenv;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
@@ -20,6 +27,7 @@ import java.util.List;
 public class GoogleSheetsService {
 
     private static final Logger log = LoggerFactory.getLogger(GoogleSheetsService.class);
+    private static final Pattern PADRAO_TURMA_ID = Pattern.compile("TurmaId=(\\d+)");
 
     private final String spreadsheetId;
     private final String nomeAba;
@@ -49,8 +57,9 @@ public class GoogleSheetsService {
 
     public List<CursoModel> buscarCursos() throws Exception {
         log.info("Buscando cursos na nuvem...");
+
         ValueRange resposta = servicePlanilha.spreadsheets().values()
-                .get(spreadsheetId, nomeAba + "!A2:B")
+                .get(spreadsheetId, nomeAba + "!A2:C")
                 .execute();
 
         List<List<Object>> valores = resposta.getValues();
@@ -58,9 +67,11 @@ public class GoogleSheetsService {
 
         if (valores == null || valores.isEmpty()) {
             log.info("A planilha está vazia.");
-            return listaDeCursosValidos; // Retorna lista vazia
+            return listaDeCursosValidos;
         }
 
+        DateTimeFormatter formatadorData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        LocalDate dataDeHoje = LocalDate.now();
         int linhaAtualPlanilha = 2;
 
         for (List<Object> linha : valores) {
@@ -71,19 +82,43 @@ public class GoogleSheetsService {
 
             String textoColunaA = linha.get(0).toString().trim();
 
-            if (textoColunaA.isEmpty()) {
+            if (textoColunaA.isEmpty() || textoColunaA.toUpperCase().contains("PROAMIS")) {
                 linhaAtualPlanilha++;
                 continue;
             }
 
-            if (textoColunaA.toUpperCase().contains("PROAMIS")) {
+            String dataCursoStr = (linha.size() > 1 && linha.get(1) != null) ? linha.get(1).toString().trim() : "";
+
+            if (!dataCursoStr.isEmpty()) {
+                try {
+                    LocalDate dataDoCurso = LocalDate.parse(dataCursoStr, formatadorData);
+                    if (dataDoCurso.isBefore(dataDeHoje) || dataDoCurso.isEqual(dataDeHoje)) {
+                        log.info("Pulando curso '{}': A data ({}) é de hoje ou já passou.", textoColunaA, dataCursoStr);
+                        linhaAtualPlanilha++;
+                        continue;
+                    }
+                } catch (DateTimeParseException e) {
+                    log.warn("Formato de data inválido para o curso '{}': '{}'", textoColunaA, dataCursoStr);
+                }
+            }
+
+            // Extração do id via Regex
+            String urlSistema = (linha.size() > 2 && linha.get(2) != null) ? linha.get(2).toString().trim() : "";
+            String idExtraido = "";
+
+            if (!urlSistema.isEmpty()) {
+                Matcher buscador = PADRAO_TURMA_ID.matcher(urlSistema);
+                if (buscador.find()) {
+                    idExtraido = buscador.group(1);
+                }
+            }
+            if (idExtraido.isEmpty()) {
+                log.warn("Nenhum 'TurmaId' localizado na linha {} para o curso: {}. Pulando...", linhaAtualPlanilha, textoColunaA);
                 linhaAtualPlanilha++;
                 continue;
             }
 
-            String dataCurso = (linha.size() > 1 && linha.get(1) != null) ? linha.get(1).toString().trim() : "";
-
-            CursoModel curso = new CursoModel(textoColunaA, dataCurso, linhaAtualPlanilha);
+            CursoModel curso = new CursoModel(Integer.parseInt(idExtraido), textoColunaA, dataCursoStr, linhaAtualPlanilha);
             listaDeCursosValidos.add(curso);
 
             linhaAtualPlanilha++;
@@ -99,7 +134,7 @@ public class GoogleSheetsService {
 
         ValueRange body = new ValueRange().setValues(valoresAtualizacao);
 
-        String intervaloAtualizacao = nomeAba + "!C" + curso.getLinhaPlanilha() + ":D" + curso.getLinhaPlanilha();
+        String intervaloAtualizacao = nomeAba + "!D" + curso.getLinhaPlanilha() + ":E" + curso.getLinhaPlanilha();
 
         servicePlanilha.spreadsheets().values()
                 .update(spreadsheetId, intervaloAtualizacao, body)

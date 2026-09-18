@@ -31,14 +31,14 @@ public class CursoModel {
     public int getInscritos() {
         return inscritos;
     }
-    public void setInscritos(int inscritos) {
+    void setInscritos(int inscritos) {
         this.inscritos = inscritos;
     }
 
     public int getOuvintes() {
         return ouvintes;
     }
-    public void setOuvintes(int ouvintes) {
+    void setOuvintes(int ouvintes) {
         this.ouvintes = ouvintes;
     }
 }

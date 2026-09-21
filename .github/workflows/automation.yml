@@ -1,0 +1,43 @@
+name: RPA EGOV - Cloud Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      usuario_sistema:
+        description: 'Usuario de acesso ao sistema'
+        required: true
+        type: string
+      senha_sistema:
+        description: 'Senha de acesso ao sistema'
+        required: true
+        type: string
+
+jobs:
+  run-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Injetar Credenciais do Google Cloud
+        run: echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > credenciais.json
+
+      - name: Executar Crawler Headless
+        env:
+          URL_SISTEMA: ${{ secrets.URL_SISTEMA }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          NOME_ABA: ${{ secrets.NOME_ABA }}
+          GOOGLE_CREDENTIALS_PATH: credenciais.json
+          TEMPO_ESPERA_SEGUNDOS: ${{ secrets.TEMPO_ESPERA_SEGUNDOS }}
+          TEMPO_ESPERA_LOGIN_SEGUNDOS: ${{ secrets.TEMPO_ESPERA_LOGIN_SEGUNDOS }}
+          USUARIO_LOGIN: ${{ inputs.usuario_sistema }}
+          SENHA_LOGIN: ${{ inputs.senha_sistema }}
+        run: |
+          mvn clean test-compile exec:java -Dexec.mainClass="com.rpa.api.automation.Automation"

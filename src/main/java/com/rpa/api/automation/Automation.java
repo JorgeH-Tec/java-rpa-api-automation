@@ -16,7 +16,6 @@ public class Automation {
         SistemaNavegador sistema = null;
 
         try {
-
             GoogleSheetsService google = new GoogleSheetsService();
             List<CursoModel> listaDeCursos = google.buscarCursos();
 
@@ -30,9 +29,9 @@ public class Automation {
 
             for (CursoModel cursoAtual : listaDeCursos) {
                 sistema.processarCurso(cursoAtual);
-
-                google.salvarResultados(cursoAtual);
             }
+
+            google.salvarResultadosEmLote(listaDeCursos);
 
             log.info("\nAutomação finalizada com sucesso!");
 

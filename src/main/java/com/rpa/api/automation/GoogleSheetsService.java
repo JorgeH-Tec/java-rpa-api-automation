@@ -18,6 +18,7 @@ import com.google.api.services.sheets.v4.SheetsScopes;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.api.services.sheets.v4.model.ValueRange;
+import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest;
 
 import java.io.FileInputStream;
 import java.util.ArrayList;
@@ -127,20 +128,38 @@ public class GoogleSheetsService {
         return listaDeCursosValidos;
     }
 
-    public void salvarResultados(CursoModel curso) throws Exception {
-        List<List<Object>> valoresAtualizacao = List.of(
-                List.of(curso.getInscritos(), curso.getOuvintes())
-        );
+    public void salvarResultadosEmLote(List<CursoModel> cursosProcessados) throws Exception {
+        log.info("Preparando envio em lote para o Google Sheets...");
 
-        ValueRange body = new ValueRange().setValues(valoresAtualizacao);
+        List<ValueRange> dadosLote = new ArrayList<>();
 
-        String intervaloAtualizacao = nomeAba + "!D" + curso.getLinhaPlanilha() + ":E" + curso.getLinhaPlanilha();
+        for (CursoModel curso : cursosProcessados) {
+            List<List<Object>> valores = List.of(
+                    List.of(curso.getInscritos(), curso.getOuvintes())
+            );
+
+            String intervalo = nomeAba + "!D" + curso.getLinhaPlanilha() + ":E" + curso.getLinhaPlanilha();
+
+            ValueRange body = new ValueRange()
+                    .setRange(intervalo)
+                    .setValues(valores);
+
+            dadosLote.add(body);
+        }
+
+        if (dadosLote.isEmpty()) {
+            log.info("Nenhum dado para atualizar.");
+            return;
+        }
+
+        BatchUpdateValuesRequest pacoteEmLote = new BatchUpdateValuesRequest()
+                .setValueInputOption("USER_ENTERED")
+                .setData(dadosLote);
 
         servicePlanilha.spreadsheets().values()
-                .update(spreadsheetId, intervaloAtualizacao, body)
-                .setValueInputOption("USER_ENTERED")
+                .batchUpdate(spreadsheetId, pacoteEmLote)
                 .execute();
 
-        log.info("Salvo na planilha na linha {}!", curso.getLinhaPlanilha());
+        log.info("Sucesso! {} cursos atualizados na planilha.", dadosLote.size());
     }
 }

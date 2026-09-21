@@ -8,6 +8,7 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -17,6 +18,10 @@ public class SistemaNavegador {
 
     private static final Logger log = LoggerFactory.getLogger(SistemaNavegador.class);
 
+    private static final String TXT_USUARIO = "Input_UsernameVal";
+    private static final String TXT_SENHA = "Input_PasswordVal";
+    private static final String BTN_ENTRAR = "//div[@id='b8-Button']/button";
+    private static final String BTN_ORGAO = "//select[@id='DropdownOrgao']/option[@value='99']";
     private static final String BTN_ACESSO_SISTEMA = "//span[text()='EGOV']";
     private static final String BTN_CONFIRMAR_ACAO = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wtContent2_block_wtContent_wt387";
     private static final String LBL_INSCRITOS = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn1_WebPatterns_wt37_block_wtColumn3_WebPatterns_wt380_block_wtNumber";
@@ -30,16 +35,27 @@ public class SistemaNavegador {
     private final WebDriverWait espera;
     private final WebDriverWait esperaLogin;
     private final String urlSistema;
+    private final String usuarioLogin;
+    private final String senhaLogin;
 
     public SistemaNavegador() {
         Dotenv dotenv = Dotenv.load();
         this.urlSistema = dotenv.get("URL_SISTEMA");
+        this.usuarioLogin = dotenv.get("USUARIO_LOGIN");
+        this.senhaLogin = dotenv.get("SENHA_LOGIN");
         int tempoEspera = Integer.parseInt(dotenv.get("TEMPO_ESPERA_SEGUNDOS"));
         int tempoLogin = Integer.parseInt(dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS"));
 
-        log.info("Iniciando o Navegador Chrome...");
+        log.info("Iniciando o Navegador Chrome (Modo Nuvem)...");
         WebDriverManager.chromedriver().setup();
-        this.navegador = new ChromeDriver();
+
+        ChromeOptions options = new ChromeOptions();
+        options.addArguments("--headless=new");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+
+        this.navegador = new ChromeDriver(options);
         this.navegador.manage().window().maximize();
 
         this.espera = new WebDriverWait(navegador, Duration.ofSeconds(tempoEspera));
@@ -47,11 +63,20 @@ public class SistemaNavegador {
     }
 
     public void fazerLogin() {
+        log.info("Acessando a página de login...");
         navegador.get(urlSistema);
-        log.info("Realize o Login no navegador...");
+
+        esperaLogin.until(ExpectedConditions.visibilityOfElementLocated(By.id(TXT_USUARIO))).sendKeys(usuarioLogin);
+        navegador.findElement(By.id(TXT_SENHA)).sendKeys(senhaLogin);
+
+        log.info("Selecionando o órgão...");
+        esperaLogin.until(ExpectedConditions.elementToBeClickable(By.xpath(BTN_ORGAO))).click();
+
+        log.info("Formulário preenchido, efetuando login...");
+        esperaLogin.until(ExpectedConditions.elementToBeClickable(By.xpath(BTN_ENTRAR))).click();
 
         esperaLogin.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(BTN_ACESSO_SISTEMA)));
-        log.info("Login detectado! Assumindo o controle...");
+        log.info("Login automatizado concluído com sucesso! Assumindo o controle do Dashboard...");
     }
 
     public void processarCurso(CursoModel curso) {

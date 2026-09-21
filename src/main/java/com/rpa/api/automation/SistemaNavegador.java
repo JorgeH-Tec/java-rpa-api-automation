@@ -39,12 +39,36 @@ public class SistemaNavegador {
     private final String senhaLogin;
 
     public SistemaNavegador() {
-        Dotenv dotenv = Dotenv.load();
-        this.urlSistema = dotenv.get("URL_SISTEMA");
-        this.usuarioLogin = dotenv.get("USUARIO_LOGIN");
-        this.senhaLogin = dotenv.get("SENHA_LOGIN");
-        int tempoEspera = Integer.parseInt(dotenv.get("TEMPO_ESPERA_SEGUNDOS"));
-        int tempoLogin = Integer.parseInt(dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS"));
+        Dotenv dotenv;
+        try {
+            dotenv = Dotenv.load();
+        } catch (Exception e) {
+            dotenv = null; // Ignora se o arquivo .env físico não existir (ambiente de nuvem)
+        }
+
+        // Leitura segura com fallback para as variáveis de ambiente do sistema/GitHub
+        this.urlSistema = (dotenv != null && dotenv.get("URL_SISTEMA") != null)
+                ? dotenv.get("URL_SISTEMA")
+                : System.getenv("URL_SISTEMA");
+
+        this.usuarioLogin = (dotenv != null && dotenv.get("USUARIO_LOGIN") != null)
+                ? dotenv.get("USUARIO_LOGIN")
+                : System.getenv("USUARIO_LOGIN");
+
+        this.senhaLogin = (dotenv != null && dotenv.get("SENHA_LOGIN") != null)
+                ? dotenv.get("SENHA_LOGIN")
+                : System.getenv("SENHA_LOGIN");
+
+        String tempoEsperaStr = (dotenv != null && dotenv.get("TEMPO_ESPERA_SEGUNDOS") != null)
+                ? dotenv.get("TEMPO_ESPERA_SEGUNDOS")
+                : System.getenv("TEMPO_ESPERA_SEGUNDOS");
+
+        String tempoLoginStr = (dotenv != null && dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS") != null)
+                ? dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS")
+                : System.getenv("TEMPO_ESPERA_LOGIN_SEGUNDOS");
+
+        int tempoEspera = Integer.parseInt(tempoEsperaStr != null ? tempoEsperaStr : "15");
+        int tempoLogin = Integer.parseInt(tempoLoginStr != null ? tempoLoginStr : "60");
 
         log.info("Iniciando o Navegador Chrome (Modo Nuvem)...");
         WebDriverManager.chromedriver().setup();

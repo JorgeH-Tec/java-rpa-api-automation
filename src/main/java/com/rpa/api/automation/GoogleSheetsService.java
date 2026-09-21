@@ -35,10 +35,24 @@ public class GoogleSheetsService {
     private final Sheets servicePlanilha;
 
     public GoogleSheetsService() {
-        Dotenv dotenv = Dotenv.load();
-        this.spreadsheetId = dotenv.get("SPREADSHEET_ID");
-        this.nomeAba = dotenv.get("NOME_ABA");
-        String credentialsPath = dotenv.get("GOOGLE_CREDENTIALS_PATH");
+        Dotenv dotenv;
+        try {
+            dotenv = Dotenv.load();
+        } catch (Exception e) {
+            dotenv = null;
+        }
+
+        this.spreadsheetId = (dotenv != null && dotenv.get("SPREADSHEET_ID") != null)
+                ? dotenv.get("SPREADSHEET_ID")
+                : System.getenv("SPREADSHEET_ID");
+
+        this.nomeAba = (dotenv != null && dotenv.get("NOME_ABA") != null)
+                ? dotenv.get("NOME_ABA")
+                : System.getenv("NOME_ABA");
+
+        String credentialsPath = (dotenv != null && dotenv.get("GOOGLE_CREDENTIALS_PATH") != null)
+                ? dotenv.get("GOOGLE_CREDENTIALS_PATH")
+                : System.getenv("GOOGLE_CREDENTIALS_PATH");
 
         try {
             log.info("Autenticando com o Google Cloud...");

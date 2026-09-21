@@ -1,7 +1,9 @@
-# Java RPA & API Automation - Sincronização de Dados
-
-> **Projeto de Automação:** Pipeline de extração de dados via Web Scraping e sincronização de estado com Google Workspace.
-> **Stack:** Java 21 | Selenium WebDriver | Google Sheets API | SLF4J + Logback.
+# Java RPA & API Automation - Sincronização de Dados 
+![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=java&logoColor=white)
+![Selenium](https://img.shields.io/badge/Selenium-Automation-green?style=for-the-badge&logo=selenium&logoColor=white)
+![Google Sheets](https://img.shields.io/badge/Google%20Sheets-API-34A853?style=for-the-badge&logo=googlesheets&logoColor=white)
+> **Projeto de Automação:** Pipeline de extração de dados e sincronização de estado com Google Workspace.
+> **Stack:** Java 21 | Selenium WebDriver | Google Sheets API | SLF4J + Logback. | Batch API
 > **Foco Arquitetural:** RPA, Orientação a Objetos, Clean Code, Design Patterns e Cloud Integration.
 
 ---
@@ -36,7 +38,7 @@ O repositório demonstra a refatoração de scripts procedurais para uma **Arqui
 │       │   └── SistemaNavegador.java      
 │       └── resources/
 │           └── logback.xml                
-├── .env.example                           # Exemplo de formato para Credenciais
+├── .env.example                           # Exemplo de formatação para Credenciais
 ├── .gitignore                             
 ├── pom.xml                                
 └── README.md                              
@@ -66,6 +68,9 @@ Isolamento de credenciais e variáveis de ambiente seguindo as premissas do *12-
 
 Implementação de logging corporativo substituindo saídas padrão (`System.out`). Utilização de *placeholders* (`{}`) para otimização de processamento de strings em tempo de execução. Roteamento de logs com formatação de *timestamp* e *thread* no console, aliado a um *FileAppender* configurado para persistir rastros de exceções severas localmente (filtrado via `.gitignore`).
 
+### ⚙️ Otimização de I/O (Batch API)
+
+Substituição de requisições HTTP atômicas por processamento em lote na integração com o Google Cloud. O estado de saída dos objetos é consolidado integralmente em memória (RAM) durante o ciclo de automação web, permitindo a submissão de todos os registros em um único `payload` ao final da execução. Essa arquitetura suprime o *overhead* de conexões repetitivas, zera a latência de rede acumulada e previne bloqueios por *rate limiting* (Erro HTTP 429), otimizando de forma severa o consumo de cotas da REST API.
 
 ---
 
@@ -87,7 +92,6 @@ Camada de abstração do ecossistema `org.openqa.selenium`. Gerencia o ciclo de 
 O roadmap de evolução foca em otimização da latência de rede e integração CI/CD:
 
 3. **Cloud Execution e Zero-Trust (GitHub Actions):** Migração para *runners* efêmeros em nuvem operando de forma autônoma (modo *Headless*). A execução será acionada por `workflow_dispatch`, injetando credenciais temporárias em *runtime* via inputs criptografados, eliminando a persistência de senhas de usuários.
-4. **Otimização de I/O (Batch API):** Transição de requisições HTTP atômicas para processamento em lote. A consolidação do estado final ocorrerá integralmente em memória para posterior submissão em um único *payload* (POST/PUT), minimizando a latência de rede e reduzindo o consumo de cota da REST API.
 
 ---
 

@@ -1,9 +1,5 @@
 package com.rpa.api.automation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.github.cdimascio.dotenv.Dotenv;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -11,6 +7,8 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 
@@ -37,50 +35,35 @@ public class SistemaNavegador {
     private final String urlSistema;
     private final String usuarioLogin;
     private final String senhaLogin;
+    private boolean navegadorFechado;
 
     public SistemaNavegador() {
-        Dotenv dotenv;
+        this(AutomationConfig.load());
+    }
+
+    SistemaNavegador(AutomationConfig config) {
+        this.urlSistema = config.getUrlSistema();
+        this.usuarioLogin = config.getUsuarioLogin();
+        this.senhaLogin = config.getSenhaLogin();
+
+        int tempoEspera = config.getTempoEsperaSegundos();
+        int tempoLogin = config.getTempoEsperaLoginSegundos();
+
         try {
-            dotenv = Dotenv.load();
+            log.info("Iniciando o Navegador Chrome (Modo Nuvem)...");
+            WebDriverManager.chromedriver().setup();
+
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--headless=new");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+
+            this.navegador = new ChromeDriver(options);
+            this.navegador.manage().window().maximize();
         } catch (Exception e) {
-            dotenv = null; // Ignora se o arquivo .env físico não existir (ambiente de nuvem)
+            throw new RuntimeException("Falha ao inicializar navegador Chrome em modo headless.", e);
         }
-
-        // Leitura segura com fallback para as variáveis de ambiente do sistema/GitHub
-        this.urlSistema = (dotenv != null && dotenv.get("URL_SISTEMA") != null)
-                ? dotenv.get("URL_SISTEMA")
-                : System.getenv("URL_SISTEMA");
-
-        this.usuarioLogin = (dotenv != null && dotenv.get("USUARIO_LOGIN") != null)
-                ? dotenv.get("USUARIO_LOGIN")
-                : System.getenv("USUARIO_LOGIN");
-
-        this.senhaLogin = (dotenv != null && dotenv.get("SENHA_LOGIN") != null)
-                ? dotenv.get("SENHA_LOGIN")
-                : System.getenv("SENHA_LOGIN");
-
-        String tempoEsperaStr = (dotenv != null && dotenv.get("TEMPO_ESPERA_SEGUNDOS") != null)
-                ? dotenv.get("TEMPO_ESPERA_SEGUNDOS")
-                : System.getenv("TEMPO_ESPERA_SEGUNDOS");
-
-        String tempoLoginStr = (dotenv != null && dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS") != null)
-                ? dotenv.get("TEMPO_ESPERA_LOGIN_SEGUNDOS")
-                : System.getenv("TEMPO_ESPERA_LOGIN_SEGUNDOS");
-
-        int tempoEspera = Integer.parseInt(tempoEsperaStr != null ? tempoEsperaStr : "15");
-        int tempoLogin = Integer.parseInt(tempoLoginStr != null ? tempoLoginStr : "60");
-
-        log.info("Iniciando o Navegador Chrome (Modo Nuvem)...");
-        WebDriverManager.chromedriver().setup();
-
-        ChromeOptions options = new ChromeOptions();
-        options.addArguments("--headless=new");
-        options.addArguments("--disable-gpu");
-        options.addArguments("--no-sandbox");
-        options.addArguments("--disable-dev-shm-usage");
-
-        this.navegador = new ChromeDriver(options);
-        this.navegador.manage().window().maximize();
 
         this.espera = new WebDriverWait(navegador, Duration.ofSeconds(tempoEspera));
         this.esperaLogin = new WebDriverWait(navegador, Duration.ofSeconds(tempoLogin));
@@ -111,7 +94,6 @@ public class SistemaNavegador {
             navegador.get(urlDireta);
             aguardarCarregamento();
 
-            // Look-Before-You-Leap
             int preInscritos = Integer.parseInt(navegador.findElement(By.id(LBL_PRE_INSCRITOS)).getText().trim());
             int solicitacoesOuvintes = Integer.parseInt(navegador.findElement(By.id(LBL_SOLICITACOES_OUVINTES)).getText().trim());
             int cancelados = Integer.parseInt(navegador.findElement(By.id(LBL_CANCELADOS)).getText().trim());
@@ -130,7 +112,7 @@ public class SistemaNavegador {
             curso.setOuvintes(Integer.parseInt(espera.until(ExpectedConditions.visibilityOfElementLocated(By.id(LBL_OUVINTES))).getText().trim()));
 
             log.info("Extraído -> Inscritos: {} | Ouvintes: {}", curso.getInscritos(), curso.getOuvintes());
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.error("Falha ao processar a página do curso: {}", curso.getNome(), e);
             throw new RuntimeException("Erro ao processar o curso: " + curso.getNome(), e);
         }
@@ -143,8 +125,14 @@ public class SistemaNavegador {
     }
 
     public void fecharNavegador() {
-        if (navegador != null) {
+        if (navegadorFechado) {
+            return;
+        }
+        navegadorFechado = true;
+        try {
             navegador.quit();
+        } catch (Exception e) {
+            log.warn("Falha ao encerrar navegador com segurança.", e);
         }
     }
 }

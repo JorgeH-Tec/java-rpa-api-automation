@@ -16,7 +16,8 @@ public class Automation {
         SistemaNavegador sistema = null;
 
         try {
-            GoogleSheetsService google = new GoogleSheetsService();
+            AutomationConfig config = AutomationConfig.load();
+            GoogleSheetsService google = new GoogleSheetsService(config);
             List<CursoModel> listaDeCursos = google.buscarCursos();
 
             if (listaDeCursos.isEmpty()) {
@@ -24,7 +25,7 @@ public class Automation {
                 return;
             }
 
-            sistema = new SistemaNavegador();
+            sistema = new SistemaNavegador(config);
             sistema.fazerLogin();
 
             for (CursoModel cursoAtual : listaDeCursos) {
@@ -37,7 +38,7 @@ public class Automation {
 
         } catch (Exception e) {
             log.error("Erro crítico na execução do robô", e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Falha na execução da automação.", e);
         } finally {
             if (sistema != null) {
                 sistema.fecharNavegador();

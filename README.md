@@ -24,6 +24,13 @@ Solução de RPA desenvolvida em **Java Core** para automatizar a extração e c
 
 O repositório demonstra a refatoração de scripts procedurais para uma **Arquitetura Orientada a Objetos** robusta, aplicando princípios SOLID, isolamento de domínios, gestão segura de credenciais e telemetria para operação em ambientes de produção.
 
+### 🔐 Modelo de execução segura (GitHub Actions)
+
+- As configurações fixas do Google (`GOOGLE_CREDENTIALS_JSON`, `SPREADSHEET_ID`, `NOME_ABA`, `URL_SISTEMA` e timeouts) devem ficar em **GitHub Secrets** (preferencialmente em **Environment Secrets**).
+- O workflow manual continua permitindo que o operador informe `usuario_sistema` e `senha_sistema` por execução (`workflow_dispatch`).
+- Segredos são injetados apenas por variáveis de ambiente em runtime; o JSON de credenciais do Google é materializado em arquivo temporário no runner (`runner.temp`) e removido ao final, inclusive em falhas.
+- Restrinja o acesso de execução do workflow e habilite proteção de **GitHub Environment** para reduzir risco operacional em produção.
+
 ---
 
 ## 📂 Estrutura de Pastas

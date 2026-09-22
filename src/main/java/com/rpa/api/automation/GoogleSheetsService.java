@@ -1,29 +1,27 @@
 package com.rpa.api.automation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import io.github.cdimascio.dotenv.Dotenv;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest;
+import com.google.api.services.sheets.v4.model.ValueRange;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.api.services.sheets.v4.model.ValueRange;
-import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.FileInputStream;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class GoogleSheetsService {
 
@@ -35,28 +33,19 @@ public class GoogleSheetsService {
     private final Sheets servicePlanilha;
 
     public GoogleSheetsService() {
-        Dotenv dotenv;
-        try {
-            dotenv = Dotenv.load();
-        } catch (Exception e) {
-            dotenv = null;
-        }
+        this(AutomationConfig.load());
+    }
 
-        this.spreadsheetId = (dotenv != null && dotenv.get("SPREADSHEET_ID") != null)
-                ? dotenv.get("SPREADSHEET_ID")
-                : System.getenv("SPREADSHEET_ID");
+    GoogleSheetsService(AutomationConfig config) {
+        this.spreadsheetId = config.getSpreadsheetId();
+        this.nomeAba = config.getNomeAba();
 
-        this.nomeAba = (dotenv != null && dotenv.get("NOME_ABA") != null)
-                ? dotenv.get("NOME_ABA")
-                : System.getenv("NOME_ABA");
+        Path credentialsPath = config.getGoogleCredentialsPath();
+        validateCredentialsFile(credentialsPath);
 
-        String credentialsPath = (dotenv != null && dotenv.get("GOOGLE_CREDENTIALS_PATH") != null)
-                ? dotenv.get("GOOGLE_CREDENTIALS_PATH")
-                : System.getenv("GOOGLE_CREDENTIALS_PATH");
-
-        try {
+        try (InputStream credentialsStream = Files.newInputStream(credentialsPath)) {
             log.info("Autenticando com o Google Cloud...");
-            GoogleCredentials credenciais = GoogleCredentials.fromStream(new FileInputStream(credentialsPath))
+            GoogleCredentials credenciais = GoogleCredentials.fromStream(credentialsStream)
                     .createScoped(Collections.singletonList(SheetsScopes.SPREADSHEETS));
 
             this.servicePlanilha = new Sheets.Builder(
@@ -66,7 +55,7 @@ public class GoogleSheetsService {
                     .setApplicationName("Robo")
                     .build();
         } catch (Exception e) {
-            throw new RuntimeException("Erro ao conectar no Google: " + e.getMessage());
+            throw new RuntimeException("Erro ao conectar no Google.", e);
         }
     }
 
@@ -117,7 +106,6 @@ public class GoogleSheetsService {
                 }
             }
 
-            // Extração do id via Regex
             String urlSistema = (linha.size() > 2 && linha.get(2) != null) ? linha.get(2).toString().trim() : "";
             String idExtraido = "";
 
@@ -175,5 +163,11 @@ public class GoogleSheetsService {
                 .execute();
 
         log.info("Sucesso! {} cursos atualizados na planilha.", dadosLote.size());
+    }
+
+    private void validateCredentialsFile(Path credentialsPath) {
+        if (!Files.isRegularFile(credentialsPath) || !Files.isReadable(credentialsPath)) {
+            throw new IllegalArgumentException("Configuração inválida: arquivo de credenciais do Google não está acessível.");
+        }
     }
 }

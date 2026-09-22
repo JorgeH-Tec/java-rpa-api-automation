@@ -12,9 +12,18 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
+concurrency:
+  group: rpa-egov-production
+  cancel-in-progress: false
+
 jobs:
   run-automation:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Security note: this workflow assumes repository/environment execution access is restricted to trusted operators.
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -26,18 +35,31 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Injetar Credenciais do Google Cloud
-        run: echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > credenciais.json
+      - name: Criar arquivo temporário de credenciais Google
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          GOOGLE_CREDENTIALS_PATH: ${{ runner.temp }}/google-credentials.json
+        run: |
+          umask 077
+          printf '%s' "$GOOGLE_CREDENTIALS_JSON" > "$GOOGLE_CREDENTIALS_PATH"
+
+      - name: Validar build e testes
+        run: mvn -B -ntp clean verify
 
       - name: Executar Crawler Headless
         env:
           URL_SISTEMA: ${{ secrets.URL_SISTEMA }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           NOME_ABA: ${{ secrets.NOME_ABA }}
-          GOOGLE_CREDENTIALS_PATH: credenciais.json
+          GOOGLE_CREDENTIALS_PATH: ${{ runner.temp }}/google-credentials.json
           TEMPO_ESPERA_SEGUNDOS: ${{ secrets.TEMPO_ESPERA_SEGUNDOS }}
           TEMPO_ESPERA_LOGIN_SEGUNDOS: ${{ secrets.TEMPO_ESPERA_LOGIN_SEGUNDOS }}
           USUARIO_LOGIN: ${{ inputs.usuario_sistema }}
           SENHA_LOGIN: ${{ inputs.senha_sistema }}
-        run: |
-          mvn clean test-compile exec:java -Dexec.mainClass="com.rpa.api.automation.Automation"
+        run: mvn -B -ntp exec:java -Dexec.mainClass="com.rpa.api.automation.Automation"
+
+      - name: Limpar credenciais temporárias
+        if: ${{ always() }}
+        env:
+          GOOGLE_CREDENTIALS_PATH: ${{ runner.temp }}/google-credentials.json
+        run: rm -f "$GOOGLE_CREDENTIALS_PATH"

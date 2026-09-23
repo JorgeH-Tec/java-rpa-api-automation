@@ -28,6 +28,7 @@ public class SistemaNavegador {
     private static final String LBL_SOLICITACOES_OUVINTES = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn2_WebPatterns_wt73_block_wtContent_WebPatterns_wt25_block_wtNumber";
     private static final String LBL_CANCELADOS = "LisbonTheme_wt171_block_wtMainContent_WebPatterns_wt411_block_wtColumn1_WebPatterns_wt361_block_wtColumn2_WebPatterns_wt30_block_wtNumber";
     private static final String TELA_CARREGAMENTO = "divWait";
+    private static final By MSG_SEM_INSCRICOES = By.cssSelector("div.Feedback_Message_Warning span.Feedback_Message_Text");
 
     private final WebDriver navegador;
     private final WebDriverWait espera;
@@ -94,6 +95,14 @@ public class SistemaNavegador {
             navegador.get(urlDireta);
             aguardarCarregamento();
 
+            if (possuiMensagemSemInscricoes()) {
+                log.info("Curso '{}' ainda não possui inscrições.\nRegistrando -> inscritos: 0 | ouvintes: 0", curso.getNome());
+
+                curso.setInscritos(0);
+                curso.setOuvintes(0);
+                return;
+            }
+
             int preInscritos = Integer.parseInt(navegador.findElement(By.id(LBL_PRE_INSCRITOS)).getText().trim());
             int solicitacoesOuvintes = Integer.parseInt(navegador.findElement(By.id(LBL_SOLICITACOES_OUVINTES)).getText().trim());
             int cancelados = Integer.parseInt(navegador.findElement(By.id(LBL_CANCELADOS)).getText().trim());
@@ -122,6 +131,30 @@ public class SistemaNavegador {
         Thread.sleep(1000);
         espera.until(ExpectedConditions.invisibilityOfElementLocated(By.id(TELA_CARREGAMENTO)));
         Thread.sleep(1000);
+    }
+
+    private boolean possuiMensagemSemInscricoes() {
+        try {
+            WebDriverWait esperaMensagem = new WebDriverWait(
+                    navegador,
+                    Duration.ofSeconds(2)
+            );
+
+            return esperaMensagem.until(driver ->
+                    driver.findElements(MSG_SEM_INSCRICOES)
+                            .stream()
+                            .anyMatch(elemento ->
+                                    elemento.isDisplayed()
+                                            && elemento.getText()
+                                            .trim()
+                                            .equalsIgnoreCase(
+                                                    "Nenhuma inscrição para a turma selecionada"
+                                            )
+                            )
+            );
+        } catch (org.openqa.selenium.TimeoutException e) {
+            return false;
+        }
     }
 
     public void fecharNavegador() {
